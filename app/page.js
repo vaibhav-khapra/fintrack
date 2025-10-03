@@ -45,9 +45,9 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
     <div className="p-8 bg-white" ref={ref} id="pdf-content-hidden">
       {/* Removed internal style jsx global for PDF compatibility */}
 
-      <h1 className="text-xl font-bold mb-1">{ledger.name} Ledger Report</h1>
+      <h1 className="text-xl font-bold mb-1">{ledger.name} </h1>
       <p className="text-sm">Contact: {ledger.contactNo}</p>
-      <p className="text-sm mb-4">Report Date: {formatDateString(new Date().toISOString().substring(0, 10))}</p>
+      <p className="text-sm mb-4">Download Date: {formatDateString(new Date().toISOString().substring(0, 10))}</p>
 
       <h2 className="text-lg font-semibold mt-4 mb-2">Opening Balance: {formatCurrency(initialOpeningAmount)}</h2>
 
