@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback, useMemo, useRef, forwardRef } from 'react';
-import { Plus, ArrowRightCircle, Trash2, X, AlertTriangle, ArrowLeft, TrendingUp, TrendingDown, Download, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
+import { Plus, ArrowRightCircle, Trash2, X, AlertTriangle, ArrowLeft, TrendingUp, TrendingDown, Download, ChevronLeft, ChevronRight, Printer, Edit } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 // --- NEW IMPORTS FOR PDF GENERATION ---
@@ -198,6 +198,100 @@ const TransactionForm = ({ onClose, onAddTransaction }) => {
   );
 };
 
+// --- NEW COMPONENT: TransactionEditForm ---
+const TransactionEditForm = ({ onClose, onEditTransaction, transaction }) => {
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+    defaultValues: {
+      type: transaction.type,
+      date: transaction.date,
+      amount: transaction.amount,
+      description: transaction.description,
+    }
+  });
+
+  const editTransaction = (data) => {
+    onEditTransaction(transaction.id, data);
+    onClose();
+  };
+
+  return (
+    <form onSubmit={handleSubmit(editTransaction)} className="p-6 bg-white rounded-xl space-y-4">
+      <h2 className="text-2xl font-bold text-gray-800">Edit Transaction</h2>
+
+      <div>
+        <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">Transaction Type</label>
+        <select
+          id="type"
+          {...register("type", { required: "Type is required" })}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 transition duration-150 ease-in-out bg-white"
+        >
+          <option value="credit">Credit (Money Received)</option>
+          <option value="debit">Debit (Money Paid)</option>
+        </select>
+        {errors.type && <p className="mt-1 text-xs text-red-600">{errors.type.message}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Amount (Rs.)</label>
+        <input
+          id="amount"
+          type="number"
+          step="0.01"
+          {...register("amount", {
+            required: "Amount is required",
+            valueAsNumber: true,
+            min: { value: 0.01, message: "Amount must be greater than 0" }
+          })}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 transition duration-150 ease-in-out"
+          placeholder="e.g., 1500.00"
+        />
+        {errors.amount && <p className="mt-1 text-xs text-red-600">{errors.amount.message}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+        <input
+          id="date"
+          type="date"
+          max={new Date().toISOString().substring(0, 10)} // Prevent future dates
+          {...register("date", { required: "Date is required" })}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 transition duration-150 ease-in-out"
+        />
+        {errors.date && <p className="mt-1 text-xs text-red-600">{errors.date.message}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+        <textarea
+          id="description"
+          {...register("description")}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 transition duration-150 ease-in-out"
+          placeholder="e.g., Payment for goods"
+          rows="2"
+        />
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors duration-200 disabled:opacity-50"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Updating...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
 
 const LedgerForm = ({ onClose, onAddLedger }) => {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
@@ -369,8 +463,8 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
   );
 };
 
-// TransactionHistoryList Component with Pagination
-const TransactionHistoryList = ({ transactions }) => {
+// UPDATED: TransactionHistoryList Component with Edit functionality and Pagination
+const TransactionHistoryList = ({ transactions, onEditClick }) => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Sort transactions by timestamp (most recent first) for display
@@ -426,11 +520,23 @@ const TransactionHistoryList = ({ transactions }) => {
                   <p className="text-xs text-gray-500 truncate max-w-xs">{description}</p>
                 </div>
               </div>
-              <div className="text-right flex flex-col items-end">
-                <p className={`text-lg ${amountClass}`}>
-                  {formatCurrency(tx.amount)}
-                </p>
-                <p className="text-xs text-gray-500">{formatDateString(tx.date)}</p>
+
+              <div className="flex items-center space-x-3">
+                {/* NEW: Edit Button */}
+                <button
+                  onClick={() => onEditClick(tx)}
+                  className="p-1 text-gray-400 hover:text-amber-600 transition-colors duration-200"
+                  aria-label="Edit transaction"
+                >
+                  <Edit className='w-4 h-4' />
+                </button>
+
+                <div className="text-right flex flex-col items-end">
+                  <p className={`text-lg ${amountClass}`}>
+                    {formatCurrency(tx.amount)}
+                  </p>
+                  <p className="text-xs text-gray-500">{formatDateString(tx.date)}</p>
+                </div>
               </div>
             </div>
           );
@@ -470,9 +576,11 @@ const TransactionHistoryList = ({ transactions }) => {
   );
 }
 
-// UPDATED: LedgerDetailView Component with PDF Download logic
-const LedgerDetailView = ({ ledger, onBack, onAddTransaction }) => {
+// UPDATED: LedgerDetailView Component with PDF Download logic and Transaction Edit State
+const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction }) => {
   const [isTransModalOpen, setIsTransModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NEW State for Edit Modal
+  const [transactionToEdit, setTransactionToEdit] = useState(null); // NEW State for Transaction to Edit
   // Ref for the hidden print layout component
   const pdfContentRef = useRef(null);
 
@@ -484,6 +592,20 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction }) => {
     onAddTransaction(ledger.id, data);
     setIsTransModalOpen(false);
   }
+
+  // NEW: Handler to open the edit modal
+  const handleEditClick = useCallback((transaction) => {
+    setTransactionToEdit(transaction);
+    setIsEditModalOpen(true);
+  }, []);
+
+  // NEW: Handler to pass edited transaction data up
+  const handleUpdateTransaction = useCallback((transactionId, data) => {
+    onEditTransaction(ledger.id, transactionId, data);
+    setIsEditModalOpen(false);
+    setTransactionToEdit(null);
+  }, [ledger.id, onEditTransaction]);
+
 
   // NEW: Handle PDF Download using html2canvas and jsPDF
   const handleDownloadPDF = async () => {
@@ -526,7 +648,7 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction }) => {
   };
 
 
-  
+
 
   // Calculate original opening balance 
   const originalOpeningAmount = useMemo(() => {
@@ -552,7 +674,7 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction }) => {
 
         {/* Download Report Group */}
         <div className="flex space-x-2">
-          
+
           <button
             onClick={handleDownloadPDF}
             className='flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors duration-200 shadow-md disabled:opacity-50'
@@ -575,7 +697,7 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction }) => {
 
         {/* Opening Balance Display */}
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Opening Balance</h3>
+          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Original Opening Balance</h3>
           <p className="text-xl font-mono text-gray-800">
             {formatCurrency(originalOpeningAmount)}
           </p>
@@ -613,15 +735,30 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction }) => {
           </button>
         </div>
 
-        <TransactionHistoryList transactions={ledger.transactions} />
+        {/* UPDATED: Pass the edit click handler to the TransactionHistoryList */}
+        <TransactionHistoryList
+          transactions={ledger.transactions}
+          onEditClick={handleEditClick}
+        />
       </div>
 
-      {/* Transaction Modal */}
+      {/* Transaction Add Modal */}
       <Modal isOpen={isTransModalOpen} onClose={() => setIsTransModalOpen(false)}>
         <TransactionForm
           onClose={() => setIsTransModalOpen(false)}
           onAddTransaction={handleAddTransaction}
         />
+      </Modal>
+
+      {/* NEW: Transaction Edit Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+        {transactionToEdit && (
+          <TransactionEditForm
+            onClose={() => setIsEditModalOpen(false)}
+            onEditTransaction={handleUpdateTransaction}
+            transaction={transactionToEdit}
+          />
+        )}
       </Modal>
 
       {/* Hidden Component for PDF Layout (Rendered off-screen for html2canvas to capture) */}
@@ -696,6 +833,24 @@ export default function App() {
     setLedgers(prev => [newLedger, ...prev]);
   }, []);
 
+  const calculateNewBalance = useCallback((ledger, transactionId, newData) => {
+    const oldTransaction = ledger.transactions.find(tx => tx.id === transactionId);
+
+    if (!oldTransaction) return ledger.openingAmount;
+
+    // 1. Reverse the effect of the old transaction
+    const oldValue = oldTransaction.amount * getTransactionAmountSign(oldTransaction.type);
+    const balanceAfterReversal = ledger.openingAmount - oldValue;
+
+    // 2. Apply the effect of the new transaction
+    const newValue = parseFloat(newData.amount) * getTransactionAmountSign(newData.type);
+    const newBalance = balanceAfterReversal + newValue;
+
+    return newBalance;
+  }, []);
+
+
+  // UPDATED: handleAddTransaction remains the same
   const handleAddTransaction = useCallback((ledgerId, data) => {
     const { type, amount, date, description } = data;
     const amountSign = getTransactionAmountSign(type);
@@ -733,6 +888,48 @@ export default function App() {
       })
     );
   }, [viewState.selectedLedger]);
+
+  // NEW: handleEditTransaction function
+  const handleEditTransaction = useCallback((ledgerId, transactionId, newData) => {
+    setLedgers(prevLedgers =>
+      prevLedgers.map(ledger => {
+        if (ledger.id === ledgerId) {
+          // 1. Calculate the new balance based on the old and new transaction values
+          const newBalance = calculateNewBalance(ledger, transactionId, newData);
+
+          // 2. Update the specific transaction
+          const updatedTransactions = ledger.transactions.map(tx => {
+            if (tx.id === transactionId) {
+              return {
+                ...tx,
+                type: newData.type,
+                amount: parseFloat(newData.amount),
+                date: newData.date,
+                description: newData.description,
+                // Preserve original timestamp for sorting
+              };
+            }
+            return tx;
+          });
+
+          const updatedLedger = {
+            ...ledger,
+            openingAmount: newBalance,
+            transactions: updatedTransactions
+          };
+
+          // Update viewState for immediate detail view refresh
+          if (viewState.selectedLedger?.id === ledgerId) {
+            setViewState(prev => ({ ...prev, selectedLedger: updatedLedger }));
+          }
+
+          return updatedLedger;
+        }
+        return ledger;
+      })
+    );
+  }, [calculateNewBalance, viewState.selectedLedger]);
+
 
   const initiateDeleteLedger = useCallback((id) => {
     const ledger = ledgers.find(l => l.id === id);
@@ -786,6 +983,7 @@ export default function App() {
             ledger={updatedLedger}
             onBack={handleBackToList}
             onAddTransaction={handleAddTransaction}
+            onEditTransaction={handleEditTransaction} 
           />
         </main>
       );
