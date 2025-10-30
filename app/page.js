@@ -28,6 +28,7 @@ const formatDateString = (dateString) => {
 // --- Component Definitions ---
 
 // UPDATED: Component for PDF/Print Layout
+// Corrected: Component for PDF/Print Layout
 const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
   // Sort transactions by date (oldest first for chronological report)
   const sortedTransactions = useMemo(() => {
@@ -40,15 +41,18 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
 
   return (
     // Ref is attached to the main div for html2canvas
-    <div className="p-8 bg-white" ref={ref} id="pdf-content-hidden">
+    // Using inline styles for styling elements to ensure html2canvas compatibility
+    <div style={{ padding: '32px', backgroundColor: '#ffffff', width: '100%' }} ref={ref} id="pdf-content-hidden">
 
-      <h1 className="text-xl font-bold mb-1 text-indigo-800">{ledger.name} </h1>
-      <p className="text-sm text-gray-600">Contact: {ledger.contactNo}</p>
-      <p className="text-sm mb-4 text-gray-600">Report Date: {formatDateString(new Date().toISOString().substring(0, 10))}</p>
+      <h1 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '4px', color: '#3730a3' }}>{ledger.name} </h1>
+      <p style={{ fontSize: '14px', color: '#4b5563' }}>Contact: {ledger.contactNo}</p>
+      <p style={{ fontSize: '14px', marginBottom: '16px', color: '#4b5563' }}>Report Date: {formatDateString(new Date().toISOString().substring(0, 10))}</p>
 
-      <h2 className="text-lg font-semibold mt-4 mb-2 text-indigo-700">Opening Balance: {formatCurrency(initialOpeningAmount)}</h2>
+      <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '16px', marginBottom: '8px', color: '#4338ca' }}>
+        Opening Balance: {formatCurrency(initialOpeningAmount)}
+      </h2>
 
-      {/* Using inline styles to ensure table structure is picked up by html2canvas */}
+      {/* Using inline styles and removing whitespace between tr/td/th to fix hydration issues */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
         <thead>
           <tr style={{ backgroundColor: '#eef2ff' }}> {/* Light Indigo Header */}
@@ -91,12 +95,13 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
         </tbody>
       </table>
 
-      <h2 className="text-lg font-semibold mt-6 text-indigo-700">Final Balance: {formatCurrency(ledger.openingAmount)}</h2>
+      <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '24px', color: '#4338ca' }}>
+        Final Balance: {formatCurrency(ledger.openingAmount)}
+      </h2>
 
     </div>
   );
 });
-
 const TransactionForm = ({ onClose, onAddTransaction }) => {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
@@ -339,7 +344,7 @@ const LedgerForm = ({ onClose, onAddLedger }) => {
         <input
           id="openingAmount"
           type="text"
-          
+
           {...register("openingAmount", {
             required: "Amount is required",
             validate: (value) => {
@@ -645,9 +650,11 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
   const [isTransModalOpen, setIsTransModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState(null);
-  // NEW Delete states
   const [isDeleteTransModalOpen, setIsDeleteTransModalOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState(null);
+  // NEW STATE: To control the temporary rendering of the print layout
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
   // Ref for the hidden print layout component
   const pdfContentRef = useRef(null);
 
@@ -688,44 +695,60 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
     setTransactionToDelete(null);
   }, [ledger.id, onRemoveTransaction, transactionToDelete]);
 
-  // Handle PDF Download using html2canvas and jsPDF
+  // Handle PDF Download using html2canvas and jsPDF - CORRECTED LOGIC
   const handleDownloadPDF = async () => {
-    if (!pdfContentRef.current) return;
+    if (!ledger.transactions || ledger.transactions.length === 0) return;
 
-    // 1. Convert the HTML content to a canvas image
-    const canvas = await html2canvas(pdfContentRef.current, {
-      scale: 2, // Use higher scale for better resolution
-      useCORS: true,
-      windowWidth: pdfContentRef.current.scrollWidth,
-      windowHeight: pdfContentRef.current.scrollHeight,
-    });
+    // 1. Start the generation process and wait for the hidden component to render
+    setIsGeneratingPdf(true);
+    // Use a small timeout to ensure the DOM has updated and the component is rendered
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-    // 2. Initialize jsPDF
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgData = canvas.toDataURL('image/png');
-    const imgProps = pdf.getImageProperties(imgData);
-
-    // Calculate the width and height of the image in the PDF (A4 size is ~210x297 mm)
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    let heightLeft = pdfHeight;
-    let position = 0;
-
-    // 3. Add the image to the PDF
-    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-    heightLeft -= pdf.internal.pageSize.getHeight();
-
-    // 4. Handle Multi-page Content (if height > A4 height)
-    while (heightLeft >= 0) {
-      position = heightLeft - pdf.internal.pageSize.getHeight();
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
+    if (!pdfContentRef.current) {
+      console.error("PDF Content Ref is not available.");
+      setIsGeneratingPdf(false);
+      return;
     }
 
-    // 5. Save the PDF file
-    pdf.save(`${ledger.name}_Ledger_Report_${new Date().toISOString().substring(0, 10)}.pdf`);
+    try {
+      // 2. Convert the HTML content to a canvas image
+      const canvas = await html2canvas(pdfContentRef.current, {
+        scale: 2, // Use higher scale for better resolution
+        useCORS: true,
+      });
+
+      // 3. Initialize jsPDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = pdf.getImageProperties(imgData);
+
+      // Calculate the width and height of the image in the PDF (A4 size is ~210x297 mm)
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      // 4. Add the image to the PDF
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pdf.internal.pageSize.getHeight();
+
+      // 5. Handle Multi-page Content (if height > A4 height)
+      while (heightLeft >= 0) {
+        position = heightLeft - pdf.internal.pageSize.getHeight();
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+      }
+
+      // 6. Save the PDF file
+      pdf.save(`${ledger.name}_Ledger_Report_${new Date().toISOString().substring(0, 10)}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+    } finally {
+      // 7. Stop the generation process to hide the component
+      setIsGeneratingPdf(false);
+    }
   };
 
   // Calculate original opening balance 
@@ -755,10 +778,17 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
             onClick={handleDownloadPDF}
             className='flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 shadow-md disabled:opacity-50'
             aria-label="Download as PDF"
-            disabled={!ledger.transactions || ledger.transactions.length === 0}
+            disabled={!ledger.transactions || ledger.transactions.length === 0 || isGeneratingPdf}
           >
-            <Printer className='w-5 h-5' />
-            <span>Download Report</span>
+            {isGeneratingPdf ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <Printer className='w-5 h-5' />
+            )}
+            <span>{isGeneratingPdf ? 'Generating...' : 'Download Report'}</span>
           </button>
         </div>
       </div>
@@ -845,10 +875,12 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         transaction={transactionToDelete}
       />
 
-      {/* Hidden Component for PDF Layout (Rendered off-screen for html2canvas to capture) */}
-      <div style={{ position: 'absolute', left: '-5000px', top: 0, zIndex: -1 }}>
-        <LedgerReportPrintLayout ledger={ledger} ref={pdfContentRef} />
-      </div>
+      {/* Conditional Rendering for PDF Layout (Fixed position, invisible to user, visible to html2canvas) */}
+      {isGeneratingPdf && (
+        <div style={{ position: 'fixed', top: '0', left: '-5000px', zIndex: '9999', width: '210mm', height: '297mm', overflow: 'hidden' }}>
+          <LedgerReportPrintLayout ledger={ledger} ref={pdfContentRef} />
+        </div>
+      )}
     </div>
   );
 };
