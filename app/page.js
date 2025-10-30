@@ -338,7 +338,7 @@ const LedgerForm = ({ onClose, onAddLedger }) => {
           id="openingAmount"
           // FIX: Change to type="text" and use inputMode for mobile negative sign support
           type="text"
-          inputMode="decimal"
+          
           step="0.01"
           {...register("openingAmount", {
             required: "Amount is required",
