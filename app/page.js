@@ -333,23 +333,32 @@ const LedgerForm = ({ onClose, onAddLedger }) => {
       </div>
 
       <div>
-        <label htmlFor="openingAmount" className="block text-sm font-medium text-gray-700 mb-1">Opening Balance (Rs.)</label>
+        <label htmlFor="openingAmount" className="block text-sm font-medium text-gray-700 mb-1">
+          Opening Balance (Rs.)
+        </label>
         <input
           id="openingAmount"
-          // FIX: Change to type="text" and use inputMode for mobile negative sign support
           type="text"
-          
-          step="0.01"
+          inputMode="decimal"
           {...register("openingAmount", {
             required: "Amount is required",
-            valueAsNumber: true
+            validate: (value) => {
+              const num = parseFloat(value);
+              if (isNaN(num)) return "Amount must be a valid number";
+              return true;
+            },
           })}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out"
           placeholder="e.g., 5000.00 (Credit) or -500.00 (Debit)"
         />
-        {errors.openingAmount && <p className="mt-1 text-xs text-red-600">{errors.openingAmount.message}</p>}
-        <p className="mt-1 text-xs text-gray-500">Use a **negative sign (-)** if you owe them (Debit).</p>
+        {errors.openingAmount && (
+          <p className="mt-1 text-xs text-red-600">{errors.openingAmount.message}</p>
+        )}
+        <p className="mt-1 text-xs text-gray-500">
+          Use a <strong>negative sign (-)</strong> if you owe them (Debit).
+        </p>
       </div>
+
 
       <div className="flex justify-end gap-3 pt-2">
         <button
