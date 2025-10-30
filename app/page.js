@@ -339,7 +339,7 @@ const LedgerForm = ({ onClose, onAddLedger }) => {
         <input
           id="openingAmount"
           type="text"
-          inputMode="decimal"
+          
           {...register("openingAmount", {
             required: "Amount is required",
             validate: (value) => {
