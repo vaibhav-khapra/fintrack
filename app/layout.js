@@ -68,6 +68,12 @@ export default function RootLayout({ children }) {
           href="/icons/apple-splash-2778-1284.jpg"
           media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
         />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#2563eb" />
+        <link rel="apple-touch-icon" href="/icons/manifest-icon-512-maskable.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
