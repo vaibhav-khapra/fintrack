@@ -503,7 +503,7 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
 
       <div className="mt-4">
         <p className="text-base font-semibold text-gray-600">Current Balance:</p>
-        <h2 className={`text-2xl md:text-3xl font-black ${textColor}`}>
+        <h2 className={`text-lg md:text-3xl font-black ${textColor}`}>
           {formatCurrency(ledger.openingAmount)}
         </h2>
       </div>
