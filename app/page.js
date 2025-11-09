@@ -796,7 +796,7 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 p-4 bg-gray-50 rounded-xl shadow-inner">
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Current Balance</h3>
-          <p className={`text-5xl font-black ${textColor}`}>
+          <p className={`text-xl font-black ${textColor}`}>
             {formatCurrency(currentBalance)}
           </p>
         </div>
