@@ -387,6 +387,23 @@ const LedgerForm = ({ onClose, onAddLedger }) => {
 };
 
 const Modal = ({ isOpen, onClose, children }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Handle back button press
+    const handleBackButton = (e) => {
+      e.preventDefault();
+      onClose();
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handleBackButton);
+
+    return () => {
+      window.removeEventListener('popstate', handleBackButton);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -493,8 +510,16 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
   const textColor = isCredit ? 'text-green-700' : 'text-red-700';
   const iconColor = isCredit ? 'text-green-600 hover:text-green-500' : 'text-red-600 hover:text-red-500';
 
+  const handleDelete = (e) => {
+    e.stopPropagation(); // Prevent card click when deleting
+    onDelete(ledger.id);
+  };
+
   return (
-    <div className={`w-full h-auto rounded-xl p-6 shadow-lg border-l-4 relative transition-all duration-300 hover:shadow-xl ${bgColor}`}>
+    <div 
+      onClick={() => onViewDetails(ledger)}
+      className={`w-full h-auto rounded-xl p-6 shadow-lg border-l-4 relative transition-all duration-300 hover:shadow-xl ${bgColor} cursor-pointer active:scale-95 hover:scale-[1.02]`}
+    >
       <h1 className="text-xl md:text-2xl font-extrabold text-indigo-900 flex items-center gap-2">
         <Briefcase className='w-5 h-5 text-indigo-500' />
         {ledger.name}
@@ -510,14 +535,9 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
 
       <div className='absolute bottom-4 right-4 flex gap-3'>
         <Trash2
-          onClick={() => onDelete(ledger.id)}
+          onClick={handleDelete}
           className={`w-6 h-6 md:w-6 md:h-6 cursor-pointer text-gray-400 hover:text-red-600 transition-colors duration-200`}
           aria-label={`Delete ledger ${ledger.name}`}
-        />
-        <ArrowRightCircle
-          onClick={() => onViewDetails(ledger)}
-          className={`w-6 h-6 md:w-6 md:h-6 cursor-pointer text-cyan-600 hover:text-cyan-500 transition-colors duration-200`}
-          aria-label={`View details for ledger ${ledger.name}`}
         />
       </div>
     </div>
