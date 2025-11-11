@@ -3,13 +3,17 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, forwardRef } 
 import { Plus, ArrowRightCircle, Trash2, X, AlertTriangle, ArrowLeft, TrendingUp, TrendingDown, Download, ChevronLeft, ChevronRight, Printer, Edit, CornerDownLeft, CornerUpRight, Briefcase } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
-// --- NEW IMPORTS FOR PDF GENERATION ---
+// --- IMPORTS ---
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-// ----------------------------------------
+
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { App } from '@capacitor/app';
+// -------------------------
 
 const LEDGER_STORAGE_KEY = 'fintrack_ledgers';
-const TRANSACTIONS_PER_PAGE = 5; // Setting the pagination limit
+const TRANSACTIONS_PER_PAGE = 5;
 
 // --- Utility Functions ---
 
@@ -27,21 +31,15 @@ const formatDateString = (dateString) => {
 
 // --- Component Definitions ---
 
-// UPDATED: Component for PDF/Print Layout
-// Corrected: Component for PDF/Print Layout
 const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
-  // Sort transactions by date (oldest first for chronological report)
   const sortedTransactions = useMemo(() => {
     return [...ledger.transactions || []].sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [ledger.transactions]);
 
-  // Calculate initial opening balance (reverse of all transactions)
   const initialOpeningAmount = ledger.openingAmount - sortedTransactions.reduce((sum, tx) => sum + tx.amount * getTransactionAmountSign(tx.type), 0);
   let runningBalance = initialOpeningAmount;
 
   return (
-    // Ref is attached to the main div for html2canvas
-    // Using inline styles for styling elements to ensure html2canvas compatibility
     <div style={{ padding: '32px', backgroundColor: '#ffffff', width: '100%' }} ref={ref} id="pdf-content-hidden">
 
       <h1 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '4px', color: '#3730a3' }}>{ledger.name} </h1>
@@ -52,10 +50,9 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
         Opening Balance: {formatCurrency(initialOpeningAmount)}
       </h2>
 
-      {/* Using inline styles and removing whitespace between tr/td/th to fix hydration issues */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
         <thead>
-          <tr style={{ backgroundColor: '#eef2ff' }}> {/* Light Indigo Header */}
+          <tr style={{ backgroundColor: '#eef2ff' }}>
             <th style={{ width: '15%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Date</th>
             <th style={{ width: '10%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Type</th>
             <th style={{ width: '20%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Amount (Rs.)</th>
@@ -78,7 +75,7 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
           {/* Transaction Rows */}
           {sortedTransactions.map((tx, index) => {
             const transactionValue = tx.amount * getTransactionAmountSign(tx.type);
-            runningBalance += transactionValue; // Update running balance
+            runningBalance += transactionValue;
 
             return (
               <tr key={tx.id}>
@@ -106,7 +103,7 @@ const TransactionForm = ({ onClose, onAddTransaction }) => {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
       type: 'credit',
-      date: new Date().toISOString().substring(0, 10), // Default to today
+      date: new Date().toISOString().substring(0, 10),
     }
   });
 
@@ -160,7 +157,7 @@ const TransactionForm = ({ onClose, onAddTransaction }) => {
         <input
           id="date"
           type="date"
-          max={new Date().toISOString().substring(0, 10)} // Prevent future dates
+          max={new Date().toISOString().substring(0, 10)}
           {...register("date", { required: "Date is required" })}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out"
         />
@@ -199,7 +196,6 @@ const TransactionForm = ({ onClose, onAddTransaction }) => {
   );
 };
 
-// --- TransactionEditForm (Updated for new theme) ---
 const TransactionEditForm = ({ onClose, onEditTransaction, transaction }) => {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
@@ -254,7 +250,7 @@ const TransactionEditForm = ({ onClose, onEditTransaction, transaction }) => {
         <input
           id="date"
           type="date"
-          max={new Date().toISOString().substring(0, 10)} // Prevent future dates
+          max={new Date().toISOString().substring(0, 10)}
           {...register("date", { required: "Date is required" })}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out"
         />
@@ -360,7 +356,7 @@ const LedgerForm = ({ onClose, onAddLedger }) => {
           <p className="mt-1 text-xs text-red-600">{errors.openingAmount.message}</p>
         )}
         <p className="mt-1 text-xs text-gray-500">
-          Use a <strong>negative sign (-)</strong> if you owe them (Debit).
+          Use a **negative sign (-) ** if you owe them (Debit).
         </p>
       </div>
 
@@ -387,23 +383,6 @@ const LedgerForm = ({ onClose, onAddLedger }) => {
 };
 
 const Modal = ({ isOpen, onClose, children }) => {
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Handle back button press
-    const handleBackButton = (e) => {
-      e.preventDefault();
-      onClose();
-    };
-
-    window.history.pushState(null, '', window.location.href);
-    window.addEventListener('popstate', handleBackButton);
-
-    return () => {
-      window.removeEventListener('popstate', handleBackButton);
-    };
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   return (
@@ -464,7 +443,6 @@ const DeleteConfirmationModal = ({ ledger, onConfirm, onCancel, isOpen }) => {
   );
 };
 
-// NEW: Transaction Delete Confirmation Modal
 const TransactionDeleteConfirmationModal = ({ transaction, onConfirm, onCancel, isOpen }) => {
   if (!isOpen || !transaction) return null;
 
@@ -508,15 +486,14 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
   const isCredit = ledger.openingAmount >= 0;
   const bgColor = isCredit ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500';
   const textColor = isCredit ? 'text-green-700' : 'text-red-700';
-  const iconColor = isCredit ? 'text-green-600 hover:text-green-500' : 'text-red-600 hover:text-red-500';
 
   const handleDelete = (e) => {
-    e.stopPropagation(); // Prevent card click when deleting
+    e.stopPropagation();
     onDelete(ledger.id);
   };
 
   return (
-    <div 
+    <div
       onClick={() => onViewDetails(ledger)}
       className={`w-full h-auto rounded-xl p-6 shadow-lg border-l-4 relative transition-all duration-300 hover:shadow-xl ${bgColor} cursor-pointer active:scale-95 hover:scale-[1.02]`}
     >
@@ -544,21 +521,17 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
   );
 };
 
-// UPDATED: TransactionHistoryList Component with Edit and Delete functionality and Pagination
 const TransactionHistoryList = ({ transactions, onEditClick, onDeleteClick }) => {
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Sort transactions by timestamp (most recent first) for display
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
     return [...transactions].sort((a, b) => b.timestamp - a.timestamp);
   }, [transactions]);
 
-  // Calculate page data
   const totalTransactions = sortedTransactions.length;
   const totalPages = Math.ceil(totalTransactions / TRANSACTIONS_PER_PAGE);
 
-  // Reset page to 1 if transactions are updated significantly
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(totalPages);
@@ -581,7 +554,6 @@ const TransactionHistoryList = ({ transactions, onEditClick, onDeleteClick }) =>
 
   return (
     <div className="space-y-4">
-      {/* Transaction List */}
       <div className="space-y-3">
         {currentTransactions.map((tx, index) => {
           const isCredit = tx.type === 'credit';
@@ -603,7 +575,6 @@ const TransactionHistoryList = ({ transactions, onEditClick, onDeleteClick }) =>
               </div>
 
               <div className="flex items-center space-x-3">
-                {/* Edit Button */}
                 <button
                   onClick={() => onEditClick(tx)}
                   className="p-1 text-gray-400 hover:text-cyan-600 transition-colors duration-200"
@@ -611,7 +582,6 @@ const TransactionHistoryList = ({ transactions, onEditClick, onDeleteClick }) =>
                 >
                   <Edit className='w-4 h-4' />
                 </button>
-                {/* Delete Button */}
                 <button
                   onClick={() => onDeleteClick(tx)}
                   className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
@@ -665,17 +635,14 @@ const TransactionHistoryList = ({ transactions, onEditClick, onDeleteClick }) =>
   );
 };
 
-// UPDATED: LedgerDetailView Component with PDF Download logic, Edit, and Delete State
 const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction, onRemoveTransaction }) => {
   const [isTransModalOpen, setIsTransModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState(null);
   const [isDeleteTransModalOpen, setIsDeleteTransModalOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState(null);
-  // NEW STATE: To control the temporary rendering of the print layout
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Ref for the hidden print layout component
   const pdfContentRef = useRef(null);
 
   const currentBalance = ledger.openingAmount;
@@ -687,26 +654,22 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
     setIsTransModalOpen(false);
   }
 
-  // Handler to open the edit modal
   const handleEditClick = useCallback((transaction) => {
     setTransactionToEdit(transaction);
     setIsEditModalOpen(true);
   }, []);
 
-  // Handler to pass edited transaction data up
   const handleUpdateTransaction = useCallback((transactionId, data) => {
     onEditTransaction(ledger.id, transactionId, data);
     setIsEditModalOpen(false);
     setTransactionToEdit(null);
   }, [ledger.id, onEditTransaction]);
 
-  // NEW: Handler to open the delete modal
   const handleDeleteClick = useCallback((transaction) => {
     setTransactionToDelete(transaction);
     setIsDeleteTransModalOpen(true);
   }, []);
 
-  // NEW: Handler to confirm and call the delete function
   const handleConfirmDeleteTransaction = useCallback(() => {
     if (transactionToDelete) {
       onRemoveTransaction(ledger.id, transactionToDelete.id);
@@ -715,13 +678,40 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
     setTransactionToDelete(null);
   }, [ledger.id, onRemoveTransaction, transactionToDelete]);
 
-  // Handle PDF Download using html2canvas and jsPDF - CORRECTED LOGIC
+  // **CAPACITOR BACK BUTTON FIX (LedgerDetailView)**
+  // Store modal state in a ref to avoid re-creating listener on every modal state change
+  const modalStateRef = useRef({ isTransModalOpen, isEditModalOpen, isDeleteTransModalOpen });
+  
+  useEffect(() => {
+    modalStateRef.current = { isTransModalOpen, isEditModalOpen, isDeleteTransModalOpen };
+  }, [isTransModalOpen, isEditModalOpen, isDeleteTransModalOpen]);
+
+  useEffect(() => {
+    if (typeof window.Capacitor !== 'undefined') {
+      const detailBackButtonListener = App.addListener('backButton', ({ canGoBack }) => {
+        // Check current state from ref to avoid stale closures
+        if (modalStateRef.current.isTransModalOpen) {
+          setIsTransModalOpen(false);
+        } else if (modalStateRef.current.isEditModalOpen) {
+          setIsEditModalOpen(false);
+        } else if (modalStateRef.current.isDeleteTransModalOpen) {
+          setIsDeleteTransModalOpen(false);
+        } else {
+          onBack();
+        }
+      });
+
+      return () => {
+        detailBackButtonListener.remove();
+      };
+    }
+  }, [onBack]); // Only depend on onBack, not modal states
+
+  // **PDF Download with Capacitor Filesystem and Share**
   const handleDownloadPDF = async () => {
     if (!ledger.transactions || ledger.transactions.length === 0) return;
 
-    // 1. Start the generation process and wait for the hidden component to render
     setIsGeneratingPdf(true);
-    // Use a small timeout to ensure the DOM has updated and the component is rendered
     await new Promise(resolve => setTimeout(resolve, 50));
 
     if (!pdfContentRef.current) {
@@ -731,29 +721,24 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
     }
 
     try {
-      // 2. Convert the HTML content to a canvas image
       const canvas = await html2canvas(pdfContentRef.current, {
-        scale: 2, // Use higher scale for better resolution
+        scale: 2,
         useCORS: true,
       });
 
-      // 3. Initialize jsPDF
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgData = canvas.toDataURL('image/png');
       const imgProps = pdf.getImageProperties(imgData);
 
-      // Calculate the width and height of the image in the PDF (A4 size is ~210x297 mm)
       const pdfWidth = pdf.internal.pageSize.getWidth();
       let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       let heightLeft = pdfHeight;
       let position = 0;
 
-      // 4. Add the image to the PDF
       pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
       heightLeft -= pdf.internal.pageSize.getHeight();
 
-      // 5. Handle Multi-page Content (if height > A4 height)
       while (heightLeft >= 0) {
         position = heightLeft - pdf.internal.pageSize.getHeight();
         pdf.addPage();
@@ -761,17 +746,34 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         heightLeft -= pdf.internal.pageSize.getHeight();
       }
 
-      // 6. Save the PDF file
-      pdf.save(`${ledger.name}_Ledger_Report_${new Date().toISOString().substring(0, 10)}.pdf`);
+      const pdfBase64 = pdf.output('datauristring').split(',')[1];
+      const fileName = `${ledger.name}_Ledger_Report_${new Date().toISOString().substring(0, 10)}.pdf`;
+
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: pdfBase64,
+        directory: Directory.Documents,
+        encoding: Encoding.Base64,
+        recursive: true,
+      });
+
+      await Share.share({
+        title: 'Share Ledger Report',
+        text: `Ledger report for ${ledger.name}`,
+        url: result.uri,
+        dialogTitle: 'Share with:',
+      });
+
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error("Error generating or saving PDF:", error);
+      if (typeof window.Capacitor !== 'undefined') {
+        alert(`Failed to save PDF: ${error.message || error}. Check app permissions.`);
+      }
     } finally {
-      // 7. Stop the generation process to hide the component
       setIsGeneratingPdf(false);
     }
   };
 
-  // Calculate original opening balance 
   const originalOpeningAmount = useMemo(() => {
     return currentBalance - (ledger.transactions || []).reduce((sum, tx) => sum + tx.amount * getTransactionAmountSign(tx.type), 0);
   }, [currentBalance, ledger.transactions]);
@@ -792,7 +794,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
           <p className="text-lg text-gray-500">Ledger Details</p>
         </div>
 
-        {/* Download Report Group */}
         <div className="flex space-x-2">
           <button
             onClick={handleDownloadPDF}
@@ -821,7 +822,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
           </p>
         </div>
 
-        {/* Opening Balance Display */}
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Original Opening Balance</h3>
           <p className="text-xl font-mono text-gray-800">
@@ -848,7 +848,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         </div>
       </div>
 
-      {/* Transactions Section */}
       <div className="pt-8 border-t">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-indigo-800 ">Transaction History</h2>
@@ -864,11 +863,10 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         <TransactionHistoryList
           transactions={ledger.transactions}
           onEditClick={handleEditClick}
-          onDeleteClick={handleDeleteClick} // Added Delete handler
+          onDeleteClick={handleDeleteClick}
         />
       </div>
 
-      {/* Transaction Add Modal */}
       <Modal isOpen={isTransModalOpen} onClose={() => setIsTransModalOpen(false)}>
         <TransactionForm
           onClose={() => setIsTransModalOpen(false)}
@@ -876,7 +874,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         />
       </Modal>
 
-      {/* Transaction Edit Modal */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
         {transactionToEdit && (
           <TransactionEditForm
@@ -887,7 +884,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         )}
       </Modal>
 
-      {/* NEW: Transaction Delete Modal */}
       <TransactionDeleteConfirmationModal
         isOpen={isDeleteTransModalOpen}
         onCancel={() => setIsDeleteTransModalOpen(false)}
@@ -895,7 +891,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         transaction={transactionToDelete}
       />
 
-      {/* Conditional Rendering for PDF Layout (Fixed position, invisible to user, visible to html2canvas) */}
       {isGeneratingPdf && (
         <div style={{ position: 'fixed', top: '0', left: '-5000px', zIndex: '9999', width: '210mm', height: '297mm', overflow: 'hidden' }}>
           <LedgerReportPrintLayout ledger={ledger} ref={pdfContentRef} />
@@ -905,7 +900,7 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
   );
 };
 
-export default function App() {
+export default function FintrackApp() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [ledgers, setLedgers] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -913,7 +908,7 @@ export default function App() {
   const [ledgerToDelete, setLedgerToDelete] = useState(null);
 
   const [viewState, setViewState] = useState({
-    page: 'list', // 'list' or 'detail'
+    page: 'list',
     selectedLedger: null,
   });
 
@@ -972,11 +967,9 @@ export default function App() {
 
     if (!oldTransaction) return ledger.openingAmount;
 
-    // 1. Reverse the effect of the old transaction
     const oldValue = oldTransaction.amount * getTransactionAmountSign(oldTransaction.type);
     const balanceAfterReversal = ledger.openingAmount - oldValue;
 
-    // 2. Apply the effect of the new transaction
     const newValue = parseFloat(newData.amount) * getTransactionAmountSign(newData.type);
     const newBalance = balanceAfterReversal + newValue;
 
@@ -1005,11 +998,10 @@ export default function App() {
 
           const updatedLedger = {
             ...ledger,
-            openingAmount: newBalance, // This now tracks the CURRENT balance
+            openingAmount: newBalance,
             transactions: updatedTransactions
           };
 
-          // Update viewState for immediate detail view refresh
           if (viewState.selectedLedger?.id === ledgerId) {
             setViewState(prev => ({ ...prev, selectedLedger: updatedLedger }));
           }
@@ -1025,10 +1017,8 @@ export default function App() {
     setLedgers(prevLedgers =>
       prevLedgers.map(ledger => {
         if (ledger.id === ledgerId) {
-          // 1. Calculate the new balance based on the old and new transaction values
           const newBalance = calculateNewBalance(ledger, transactionId, newData);
 
-          // 2. Update the specific transaction
           const updatedTransactions = ledger.transactions.map(tx => {
             if (tx.id === transactionId) {
               return {
@@ -1037,7 +1027,6 @@ export default function App() {
                 amount: parseFloat(newData.amount),
                 date: newData.date,
                 description: newData.description,
-                // Preserve original timestamp for sorting
               };
             }
             return tx;
@@ -1049,7 +1038,6 @@ export default function App() {
             transactions: updatedTransactions
           };
 
-          // Update viewState for immediate detail view refresh
           if (viewState.selectedLedger?.id === ledgerId) {
             setViewState(prev => ({ ...prev, selectedLedger: updatedLedger }));
           }
@@ -1061,7 +1049,6 @@ export default function App() {
     );
   }, [calculateNewBalance, viewState.selectedLedger]);
 
-  // NEW: handleRemoveTransaction function
   const handleRemoveTransaction = useCallback((ledgerId, transactionId) => {
     setLedgers(prevLedgers =>
       prevLedgers.map(ledger => {
@@ -1070,13 +1057,10 @@ export default function App() {
 
           if (!transactionToRemove) return ledger;
 
-          // 1. Calculate the value of the transaction to be removed (signed)
           const transactionValue = transactionToRemove.amount * getTransactionAmountSign(transactionToRemove.type);
 
-          // 2. Reverse the transaction's effect on the current balance
           const newBalance = ledger.openingAmount - transactionValue;
 
-          // 3. Filter out the transaction
           const updatedTransactions = ledger.transactions.filter(tx => tx.id !== transactionId);
 
           const updatedLedger = {
@@ -1085,7 +1069,6 @@ export default function App() {
             transactions: updatedTransactions
           };
 
-          // Update viewState for immediate detail view refresh
           if (viewState.selectedLedger?.id === ledgerId) {
             setViewState(prev => ({ ...prev, selectedLedger: updatedLedger }));
           }
@@ -1133,6 +1116,37 @@ export default function App() {
     setViewState({ page: 'list', selectedLedger: null });
   }, []);
 
+  // **CRITICAL FIX: Use Ref to Avoid Re-creating Listener on Every State Change**
+  // Store state in a ref to avoid stale closures
+  const mainStateRef = useRef({ isModalOpen, isDeleteModalOpen, viewState });
+  
+  useEffect(() => {
+    mainStateRef.current = { isModalOpen, isDeleteModalOpen, viewState };
+  }, [isModalOpen, isDeleteModalOpen, viewState]);
+
+  useEffect(() => {
+    if (typeof window.Capacitor !== 'undefined') {
+      const listener = App.addListener('backButton', ({ canGoBack }) => {
+        // Check current state from ref to avoid stale closures
+        if (mainStateRef.current.isModalOpen) {
+          setIsModalOpen(false);
+        } else if (mainStateRef.current.isDeleteModalOpen) {
+          cancelDeleteLedger();
+        } else if (mainStateRef.current.viewState.page === 'detail') {
+          // This calls the navigation function
+          handleBackToList();
+        } else {
+          App.exitApp();
+        }
+      });
+
+      return () => {
+        listener.remove();
+      };
+    }
+  }, [handleBackToList, cancelDeleteLedger]); // Only depend on callbacks, not state
+
+
   const renderContent = () => {
     if (viewState.page === 'detail' && viewState.selectedLedger) {
       const updatedLedger = ledgers.find(l => l.id === viewState.selectedLedger.id);
@@ -1149,7 +1163,7 @@ export default function App() {
             onBack={handleBackToList}
             onAddTransaction={handleAddTransaction}
             onEditTransaction={handleEditTransaction}
-            onRemoveTransaction={handleRemoveTransaction} // Added Remove handler
+            onRemoveTransaction={handleRemoveTransaction}
           />
         </main>
       );

@@ -14,6 +14,10 @@ const withPWA = require('next-pwa')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
+    // Export static HTML for an offline packaged app
+    output: 'export',
+    // optional: produce trailing slashes to keep paths consistent in static export
+    trailingSlash: true,
     images: {
         domains: ['fintrack-livid.vercel.app'],
     },
