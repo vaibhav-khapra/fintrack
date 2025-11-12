@@ -8,13 +8,17 @@
     "start": "next start"
   },
   "dependencies": {
+    "@capacitor-community/file-opener": "^7.0.1",
     "@capacitor/android": "7.4.4",
     "@capacitor/app": "^7.1.0",
     "@capacitor/cli": "^7.4.4",
     "@capacitor/core": "^7.4.4",
     "@capacitor/filesystem": "^7.1.4",
+    "@capacitor/local-notifications": "^7.0.3",
     "@capacitor/share": "^7.0.2",
+    "@capacitor/toast": "^7.0.2",
     "@vercel/analytics": "^1.5.0",
+    "cordova-plugin-file-opener2": "^4.0.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.544.0",

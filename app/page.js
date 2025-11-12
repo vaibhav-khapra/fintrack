@@ -11,6 +11,12 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
 // -------------------------
+import { Toast } from '@capacitor/toast';
+import { Capacitor } from '@capacitor/core';
+import { FileOpener } from '@capacitor-community/file-opener';
+import { LocalNotifications } from '@capacitor/local-notifications';
+
+
 
 const LEDGER_STORAGE_KEY = 'fintrack_ledgers';
 const TRANSACTIONS_PER_PAGE = 5;
@@ -746,33 +752,147 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         heightLeft -= pdf.internal.pageSize.getHeight();
       }
 
-      const pdfBase64 = pdf.output('datauristring').split(',')[1];
       const fileName = `${ledger.name}_Ledger_Report_${new Date().toISOString().substring(0, 10)}.pdf`;
+      const platform = Capacitor.getPlatform();
 
-      const result = await Filesystem.writeFile({
-        path: fileName,
-        data: pdfBase64,
-        directory: Directory.Documents,
-        encoding: Encoding.Base64,
-        recursive: true,
-      });
+      // ...existing code inside LedgerDetailView.handleDownloadPDF ...
+      if (platform === 'web') {
+        // --- Web Platform ---
+        pdf.save(fileName);
+        await Toast.show({
+          text: '✅ Download Successful. Check your Downloads folder.',
+          duration: 'long',
+        });
 
-      await Share.share({
-        title: 'Share Ledger Report',
-        text: `Ledger report for ${ledger.name}`,
-        url: result.uri,
-        dialogTitle: 'Share with:',
-      });
+              // Web Notification (if permitted)
+                 try {
+                     if ('Notification' in window && Notification.permission === 'granted') {
+              +            new Notification('Download complete', { body: `${fileName} saved.` });
+                       }
+                  } catch (webNotifyErr) {
+                        console.warn('Web notification failed', webNotifyErr);
+                      }
+      } else {
+        // --- Android / iOS ---
+        const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
+        try {
+          // Use ExternalCache for better Android compatibility
+          const result = await Filesystem.writeFile({
+            path: fileName,
+            data: pdfBase64,
+            directory: Directory.Documents,
+            encoding: Encoding.Base64,
+            recursive: true,
+          });
+
+          console.log('PDF saved at:', result.uri);
+
+          await Toast.show({
+            text: '✅ Download Successful. File saved.',
+            duration: 'long',
+          });
+
+          // Try to open the file
+          try {
+            await FileOpener.open({
+              filePath: result.uri,
+              contentType: 'application/pdf',
+            });
+          } catch (openError) {
+            console.warn('Error opening file:', openError);
+            await Toast.show({
+              text: '✅ File saved. Open with File Manager.',
+              duration: 'long',
+            });
+          }
+
+          // Notification after file is saved
+          try {
+            await LocalNotifications.schedule({
+              notifications: [{
+                id: Number(String(Date.now()).slice(-5)),
+                title: 'Download complete',
+                body: `${fileName} saved`,
+                channelId: 'downloads',
+                smallIcon: 'ic_notification',
+                actionTypeId: 'downloads',
+              }]
+            });
+
+            // Listen for notification click
+            LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+              if (notification.notification.channelId === 'downloads') {
+                FileOpener.open({
+                  filePath: result.uri,
+                  contentType: 'application/pdf',
+                }).catch(err => console.warn('Error opening file from notification:', err));
+              }
+            });
+          } catch (notifyErr) {
+            console.warn('Local notification failed', notifyErr);
+          }
+
+        } catch (error) {
+          console.error("Android/iOS save error:", error);
+          await Toast.show({
+            text: `❌ Failed to save PDF: ${error.message}`,
+            duration: 'long',
+          });
+        }
+      }
     } catch (error) {
       console.error("Error generating or saving PDF:", error);
-      if (typeof window.Capacitor !== 'undefined') {
-        alert(`Failed to save PDF: ${error.message || error}. Check app permissions.`);
-      }
+      await Toast.show({
+        text: `❌ Failed to save PDF: ${error.message || error}`,
+        duration: 'long',
+      });
     } finally {
       setIsGeneratingPdf(false);
     }
   };
+
+  useEffect(() => {
+    const initNotifications = async () => {
+      if (typeof window.Capacitor !== 'undefined' && Capacitor.getPlatform() !== 'web') {
+        try {
+          // Request permissions FIRST
+          const permResult = await LocalNotifications.requestPermissions();
+          console.log('Notification permission result:', permResult);
+
+          // Create channel AFTER permissions granted
+          if (permResult.display === 'granted') {
+            await LocalNotifications.createChannel({
+              id: 'downloads',
+              name: 'Downloads',
+              description: 'Notifications for file downloads',
+              importance: 4,
+              sound: 'default',
+              vibration: true,
+              smallIcon: 'ic_notification',
+            });
+
+            // Create action type for notification clicks
+            await LocalNotifications.registerActionTypes({
+              types: [{
+                id: 'downloads',
+                actions: [{
+                  id: 'open',
+                  title: 'Open',
+                }]
+              }]
+            });
+
+            console.log('Notification channel created');
+          }
+        } catch (err) {
+          console.error('Notification setup error:', err);
+        }
+      }
+    };
+    
+    initNotifications();
+  }, []);
 
   const originalOpeningAmount = useMemo(() => {
     return currentBalance - (ledger.transactions || []).reduce((sum, tx) => sum + tx.amount * getTransactionAmountSign(tx.type), 0);
