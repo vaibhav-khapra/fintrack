@@ -1279,6 +1279,7 @@ export default function FintrackApp() {
 
       return (
         <main className='pt-24 p-4 min-h-screen bg-gray-100'>
+
           <LedgerDetailView
             ledger={updatedLedger}
             onBack={handleBackToList}
@@ -1293,6 +1294,7 @@ export default function FintrackApp() {
     if (!isLoaded) {
       return (
         <main className='pt-24 p-4 min-h-screen bg-gray-100'>
+
           <div className="text-center p-16 bg-white rounded-xl shadow-md text-indigo-700 text-lg font-medium">
             Loading your ledgers...
           </div>
@@ -1302,6 +1304,7 @@ export default function FintrackApp() {
 
     return (
       <main className='pt-24 p-4 min-h-screen bg-gray-100'>
+
         <h2 className='text-2xl font-extrabold text-indigo-900 mb-6 border-b pb-2'>Your Ledgers ({ledgers.length})</h2>
 
         {ledgers.length === 0 && (
@@ -1326,13 +1329,16 @@ export default function FintrackApp() {
 
   return (
     <>
-      <nav>
-        <div className='flex border-b bg-indigo-700 fixed w-full justify-between items-center p-4 z-20 shadow-xl'>
-          <h1 className='text-2xl sm:text-3xl font-extrabold text-white'>Fin<span className='text-cyan-400 italic'>Track</span></h1>
+      <nav className="fixed top-0 left-0 w-full bg-indigo-700 h-20 z-20 shadow-xl">
+        <div className='flex h-full justify-between items-center px-4 border-b border-indigo-800'>
+          <h1 className='text-2xl sm:text-3xl font-extrabold text-white'>
+            Fin<span className='text-cyan-400 italic'>Track</span>
+          </h1>
+
           {viewState.page === 'list' && (
             <button
               onClick={() => setIsModalOpen(true)}
-              className="p-3 rounded-full bg-cyan-500 text-white shadow-lg hover:bg-cyan-600 transition-colors duration-200 transform hover:scale-105"
+              className="p-3 rounded-full bg-cyan-500 text-white shadow-lg hover:bg-cyan-600 transition-colors"
               aria-label="Add new ledger"
             >
               <Plus className='w-6 h-6 sm:w-7 sm:h-7' />
@@ -1340,6 +1346,7 @@ export default function FintrackApp() {
           )}
         </div>
       </nav>
+
 
       {renderContent()}
 

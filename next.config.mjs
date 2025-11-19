@@ -1,18 +1,12 @@
-import { withPWA } from 'next-pwa';
-
-const config = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
     reactStrictMode: true,
     experimental: {
-        turbo: {}, // Turbopack support
+        turbo: {}, // optional
     },
     images: {
         domains: ['yourdomain.com'], // optional
     },
 };
 
-export default withPWA({
-    dest: 'public',
-    register: true,
-    skipWaiting: true,
-    disable: process.env.NODE_ENV === 'development',
-})(config);
+export default nextConfig;
