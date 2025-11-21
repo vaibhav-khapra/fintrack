@@ -4,9 +4,7 @@ const nextConfig = {
     experimental: {
         turbo: {}, // optional
     },
-    images: {
-        domains: ['yourdomain.com'], // optional
-    },
+    
 };
 
 export default nextConfig;
