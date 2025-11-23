@@ -56,40 +56,113 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
         Opening Balance: {formatCurrency(initialOpeningAmount)}
       </h2>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "separate",
+          borderSpacing: "0 6px",
+          marginTop: "20px",
+          marginBottom: "20px",
+          textAlign: "center",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
         <thead>
-          <tr style={{ backgroundColor: '#eef2ff' }}>
-            <th style={{ width: '15%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Date</th>
-            <th style={{ width: '10%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Type</th>
-            <th style={{ width: '20%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Amount (Rs.)</th>
-            <th style={{ width: '45%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Description</th>
-            <th style={{ width: '10%', border: '1px solid #ddd', padding: '10px', textAlign: 'left', fontSize: '10pt', color: '#1e3a8a' }}>Balance</th>
+          <tr style={{ backgroundColor: "#f1f5f9" }}>
+            {[
+              "Date",
+              "Type",
+              "Description",
+              "Amount (Rs.)",
+              "Balance",
+            ].map((h, i) => (
+              <th
+                key={i}
+                style={{
+                  padding: "12px 8px",
+                  fontSize: "11pt",
+                  color: "#1e3a8a",
+                  borderBottom: "2px solid #cbd5e1",
+                  fontWeight: 600,
+                }}
+              >
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
+
         <tbody>
           {/* Opening Balance Row */}
-          <tr>
-            <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>{formatDateString(ledger.createdAt)}</td>
-            <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>Initial</td>
-            <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>{formatCurrency(Math.abs(initialOpeningAmount))}</td>
-            <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>Opening Balance</td>
-            <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt', color: runningBalance >= 0 ? '#059669' : '#dc2626' }}>
+          <tr
+            style={{
+              background: "white",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+            }}
+          >
+            <td style={{ padding: "10px", fontSize: "10pt" }}>
+              {formatDateString(ledger.createdAt)}
+            </td>
+
+            <td style={{ padding: "10px", fontSize: "10pt" }}>Initial</td>
+
+            <td style={{ padding: "10px", fontSize: "10pt" }}>
+              Opening Balance
+            </td>
+
+            <td style={{ padding: "10px", fontSize: "10pt" }}>
+              {formatCurrency(Math.abs(initialOpeningAmount))}
+            </td>
+
+            <td
+              style={{
+                padding: "10px",
+                fontSize: "10pt",
+                fontWeight: "600",
+                color: runningBalance >= 0 ? "#059669" : "#dc2626",
+              }}
+            >
               {formatCurrency(runningBalance)}
             </td>
           </tr>
 
           {/* Transaction Rows */}
-          {sortedTransactions.map((tx, index) => {
+          {sortedTransactions.map((tx) => {
             const transactionValue = tx.amount * getTransactionAmountSign(tx.type);
             runningBalance += transactionValue;
 
             return (
-              <tr key={tx.id}>
-                <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>{formatDateString(tx.date)}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>{tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>{formatCurrency(tx.amount)}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt' }}>{tx.description || '-'}</td>
-                <td style={{ border: '1px solid #ddd', padding: '8px', fontSize: '10pt', color: runningBalance >= 0 ? '#059669' : '#dc2626' }}>
+              <tr
+                key={tx.id}
+                style={{
+                  background: "white",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                }}
+              >
+                <td style={{ padding: "10px", fontSize: "10pt" }}>
+                  {formatDateString(tx.date)}
+                </td>
+
+                <td style={{ padding: "10px", fontSize: "10pt" }}>
+                  {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+                </td>
+
+                <td style={{ padding: "10px", fontSize: "10pt" }}>
+                  {tx.description || "-"}
+                </td>
+
+                <td style={{ padding: "10px", fontSize: "10pt" }}>
+                  {formatCurrency(tx.amount)}
+                </td>
+
+                <td
+                  style={{
+                    padding: "10px",
+                    fontSize: "10pt",
+                    fontWeight: "600",
+                    color: runningBalance >= 0 ? "#059669" : "#dc2626",
+                  }}
+                >
                   {formatCurrency(runningBalance)}
                 </td>
               </tr>
@@ -97,6 +170,7 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
           })}
         </tbody>
       </table>
+
 
       <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '24px', color: '#4338ca' }}>
         Final Balance: {formatCurrency(ledger.openingAmount)}
@@ -688,7 +762,7 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
   // **CAPACITOR BACK BUTTON FIX (LedgerDetailView)**
   // Store modal state in a ref to avoid re-creating listener on every modal state change
   const modalStateRef = useRef({ isTransModalOpen, isEditModalOpen, isDeleteTransModalOpen });
-  
+
   useEffect(() => {
     modalStateRef.current = { isTransModalOpen, isEditModalOpen, isDeleteTransModalOpen };
   }, [isTransModalOpen, isEditModalOpen, isDeleteTransModalOpen]);
@@ -756,7 +830,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
       const fileName = `${ledger.name}_Ledger_Report_${new Date().toISOString().substring(0, 10)}.pdf`;
       const platform = Capacitor.getPlatform();
 
-      // ...existing code inside LedgerDetailView.handleDownloadPDF ...
       if (platform === 'web') {
         // --- Web Platform ---
         pdf.save(fileName);
@@ -764,25 +837,17 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
           text: '✅ Download Successful. Check your Downloads folder.',
           duration: 'long',
         });
-
-              // Web Notification (if permitted)
-                 try {
-                     if ('Notification' in window && Notification.permission === 'granted') {
-              +            new Notification('Download complete', { body: `${fileName} saved.` });
-                       }
-                  } catch (webNotifyErr) {
-                        console.warn('Web notification failed', webNotifyErr);
-                      }
       } else {
         // --- Android / iOS ---
+        // Convert PDF to Base64 string
         const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
         try {
-          // Use ExternalCache for better Android compatibility
+          // 1. Write file to EXTERNAL CACHE (No permissions required usually on Android 10+)
           const result = await Filesystem.writeFile({
             path: fileName,
             data: pdfBase64,
-            directory: Directory.Documents,
+            directory: Directory.ExternalCache, // <--- CHANGED TO EXTERNAL CACHE
             encoding: Encoding.Base64,
             recursive: true,
           });
@@ -790,48 +855,23 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
           console.log('PDF saved at:', result.uri);
 
           await Toast.show({
-            text: '✅ Download Successful. File saved.',
-            duration: 'long',
+            text: '✅ Report Generated. Opening...',
+            duration: 'short',
           });
 
-          // Try to open the file
+          // 2. Automatically Open the File
           try {
             await FileOpener.open({
               filePath: result.uri,
               contentType: 'application/pdf',
+              openWithDefault: true, // Attempt to open immediately
             });
           } catch (openError) {
-            console.warn('Error opening file:', openError);
+            console.warn('Error auto-opening file:', openError);
             await Toast.show({
-              text: '✅ File saved. Open with File Manager.',
+              text: '✅ File saved in Cache. Could not auto-open.',
               duration: 'long',
             });
-          }
-
-          // Notification after file is saved
-          try {
-            await LocalNotifications.schedule({
-              notifications: [{
-                id: Number(String(Date.now()).slice(-5)),
-                title: 'Download complete',
-                body: `${fileName} saved`,
-                channelId: 'downloads',
-                smallIcon: 'ic_notification',
-                actionTypeId: 'downloads',
-              }]
-            });
-
-            // Listen for notification click
-            LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
-              if (notification.notification.channelId === 'downloads') {
-                FileOpener.open({
-                  filePath: result.uri,
-                  contentType: 'application/pdf',
-                }).catch(err => console.warn('Error opening file from notification:', err));
-              }
-            });
-          } catch (notifyErr) {
-            console.warn('Local notification failed', notifyErr);
           }
 
         } catch (error) {
@@ -854,44 +894,28 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
   };
 
   useEffect(() => {
+    // Optional: Notification setup can remain if you want backup notifications, 
+    // but the direct FileOpener call above handles the "Auto Open" requirement.
     const initNotifications = async () => {
       if (typeof window.Capacitor !== 'undefined' && Capacitor.getPlatform() !== 'web') {
         try {
-          // Request permissions FIRST
           const permResult = await LocalNotifications.requestPermissions();
-          console.log('Notification permission result:', permResult);
-
-          // Create channel AFTER permissions granted
           if (permResult.display === 'granted') {
             await LocalNotifications.createChannel({
               id: 'downloads',
               name: 'Downloads',
-              description: 'Notifications for file downloads',
               importance: 4,
               sound: 'default',
               vibration: true,
               smallIcon: 'ic_notification',
             });
-
-            // Create action type for notification clicks
-            await LocalNotifications.registerActionTypes({
-              types: [{
-                id: 'downloads',
-                actions: [{
-                  id: 'open',
-                  title: 'Open',
-                }]
-              }]
-            });
-
-            console.log('Notification channel created');
           }
         } catch (err) {
           console.error('Notification setup error:', err);
         }
       }
     };
-    
+
     initNotifications();
   }, []);
 
@@ -1240,7 +1264,7 @@ export default function FintrackApp() {
   // **CRITICAL FIX: Use Ref to Avoid Re-creating Listener on Every State Change**
   // Store state in a ref to avoid stale closures
   const mainStateRef = useRef({ isModalOpen, isDeleteModalOpen, viewState });
-  
+
   useEffect(() => {
     mainStateRef.current = { isModalOpen, isDeleteModalOpen, viewState };
   }, [isModalOpen, isDeleteModalOpen, viewState]);
