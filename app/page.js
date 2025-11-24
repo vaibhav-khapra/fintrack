@@ -47,7 +47,19 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
 
   return (
     <div style={{ padding: '32px', backgroundColor: '#ffffff', width: '100%' }} ref={ref} id="pdf-content-hidden">
-
+      
+      <img
+        src="/apple-touch-icon.png"     // <-- change path accordingly
+        alt="FinTrack Logo"
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "20px",
+          width: "50px",
+          height: "auto",
+          objectFit: "contain",
+        }}
+      />
       <h1 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '4px', color: '#3730a3' }}>{ledger.name} </h1>
       <p style={{ fontSize: '14px', color: '#4b5563' }}>Contact: {ledger.contactNo}</p>
       <p style={{ fontSize: '14px', marginBottom: '16px', color: '#4b5563' }}>Report Date: {formatDateString(new Date().toISOString().substring(0, 10))}</p>
@@ -175,6 +187,17 @@ const LedgerReportPrintLayout = forwardRef(({ ledger }, ref) => {
       <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginTop: '24px', color: '#4338ca' }}>
         Final Balance: {formatCurrency(ledger.openingAmount)}
       </h2>
+      <h2
+        style={{
+          fontSize: '15px',
+          marginTop: '8px',
+          color: '#6b7280',
+          textAlign: 'center'
+        }}
+      >
+        &copy; {new Date().getFullYear()} FinTrack - By Vaibhav Khapra
+      </h2>
+
 
     </div>
   );
