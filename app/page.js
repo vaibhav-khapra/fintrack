@@ -6,7 +6,8 @@ import { useForm } from 'react-hook-form';
 // --- IMPORTS ---
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-
+import 'jspdf-autotable'; // Essential for the table to work
+import autoTable from 'jspdf-autotable';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
@@ -813,108 +814,207 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
 
   // **PDF Download with Capacitor Filesystem and Share**
   const handleDownloadPDF = async () => {
-    if (!ledger.transactions || ledger.transactions.length === 0) return;
-
-    setIsGeneratingPdf(true);
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    if (!pdfContentRef.current) {
-      console.error("PDF Content Ref is not available.");
-      setIsGeneratingPdf(false);
+    if (!ledger.transactions || ledger.transactions.length === 0) {
+      await Toast.show({ text: 'No transactions to export', duration: 'short' });
       return;
     }
 
+    setIsGeneratingPdf(true);
+
     try {
-      const canvas = await html2canvas(pdfContentRef.current, {
-        scale: 2,
-        useCORS: true,
-      });
+      // -------------------------
+      // 1. Initialize PDF
+      // -------------------------
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgData = canvas.toDataURL('image/png');
-      const imgProps = pdf.getImageProperties(imgData);
+      // -------------------------
+      // ADD LOGO (Top-Right Corner)
+      // -------------------------
+      const logoWidth = 15;
+      const logoHeight = 15;
+      const logoUrl = 'favicon-96x96.png';  // Change if needed
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      try {
+        const img = await fetch(logoUrl)
+          .then(res => res.blob())
+          .then(blob => new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          }));
 
-      let heightLeft = pdfHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
-
-      while (heightLeft >= 0) {
-        position = heightLeft - pdf.internal.pageSize.getHeight();
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+        doc.addImage(img, 'PNG', pageWidth - logoWidth - 14, 10, logoWidth, logoHeight);
+      } catch (e) {
+        console.warn("Logo failed to load:", e);
       }
 
-      const fileName = `${ledger.name}_Ledger_Report_${new Date().toISOString().substring(0, 10)}.pdf`;
+      // -------------------------
+      // 2. Header Section
+      // -------------------------
+      doc.setFontSize(18);
+      doc.setTextColor(55, 48, 163);
+      doc.text(ledger.name, 14, 22);
+
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Contact: ${ledger.contactNo}`, 14, 30);
+      doc.text(`Report Date: ${new Date().toLocaleDateString('en-IN')}`, 14, 36);
+
+      // -------------------------
+      // 3. Calculate Running Balance
+      // -------------------------
+      const sortedTransactions = [...ledger.transactions].sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
+
+      const totalTransactionValue = sortedTransactions.reduce((sum, tx) => {
+        const sign = tx.type === 'credit' ? 1 : -1;
+        return sum + (tx.amount * sign);
+      }, 0);
+
+      const initialOpeningAmount = ledger.openingAmount - totalTransactionValue;
+      let runningBalance = initialOpeningAmount;
+
+      // -------------------------
+      // 4. Build Table Rows
+      // -------------------------
+      const tableRows = [];
+
+      tableRows.push([
+        new Date(ledger.createdAt).toLocaleDateString('en-IN'),
+        'Initial',
+        'Opening Balance',
+        `Rs. ${Math.abs(initialOpeningAmount).toFixed(2)}`,
+        `Rs. ${initialOpeningAmount.toFixed(2)}`
+      ]);
+
+      sortedTransactions.forEach(tx => {
+        const sign = tx.type === 'credit' ? 1 : -1;
+        runningBalance += (tx.amount * sign);
+
+        tableRows.push([
+          new Date(tx.date).toLocaleDateString('en-IN'),
+          tx.type.charAt(0).toUpperCase() + tx.type.slice(1),
+          tx.description || '-',
+          `Rs. ${tx.amount.toFixed(2)}`,
+          `Rs. ${runningBalance.toFixed(2)}`
+        ]);
+      });
+
+      // -------------------------
+      // 5. Generate Table
+      // -------------------------
+      autoTable(doc, {
+        startY: 45,
+        head: [['Date', 'Type', 'Description', 'Amount', 'Balance']],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [67, 56, 202] },
+        styles: { fontSize: 10, cellPadding: 3 },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 'auto' },
+          3: { cellWidth: 35, halign: 'right' },
+          4: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }
+        },
+        didParseCell: function (data) {
+          if (data.section === 'body' && data.column.index === 4) {
+            const balanceStr = data.cell.raw.replace('Rs. ', '').replace(/,/g, '');
+            const balanceVal = parseFloat(balanceStr);
+            if (balanceVal < 0) {
+              data.cell.styles.textColor = [220, 38, 38];
+            } else {
+              data.cell.styles.textColor = [5, 150, 105];
+            }
+          }
+        }
+      });
+
+      // -------------------------
+      // 6. Footer Section
+      // -------------------------
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "bold");
+
+      doc.text(
+        `Final Balance: Rs. ${ledger.openingAmount.toLocaleString('en-IN', {
+          minimumFractionDigits: 2
+        })}`,
+        14,
+        finalY
+      );
+
+      // Page numbers (on every page)
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.setFont("helvetica", "normal");
+        doc.text(
+          `Page ${i} of ${pageCount} - Generated by FinTrack - Created by Vaibhav Khapra`,
+          pageWidth / 2,
+          290,
+          { align: 'center' }
+        );
+      }
+
+      // -------------------------
+      // 7. Save / Open (Web & Native)
+      // -------------------------
+      const fileName = `${ledger.name.replace(/\s+/g, '_')}_Report.pdf`;
       const platform = Capacitor.getPlatform();
 
       if (platform === 'web') {
-        // --- Web Platform ---
-        pdf.save(fileName);
-        await Toast.show({
-          text: '✅ Download Successful. Check your Downloads folder.',
-          duration: 'long',
-        });
+        doc.save(fileName);
+        await Toast.show({ text: '✅ Downloaded', duration: 'short' });
       } else {
-        // --- Android / iOS ---
-        // Convert PDF to Base64 string
-        const pdfBase64 = pdf.output('datauristring').split(',')[1];
+        const pdfBase64 = doc.output('datauristring').split(',')[1];
+
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: pdfBase64,
+          directory: Directory.Cache,
+          encoding: Encoding.Base64,
+          recursive: true,
+        });
 
         try {
-          // 1. Write file to EXTERNAL CACHE (No permissions required usually on Android 10+)
-          const result = await Filesystem.writeFile({
-            path: fileName,
-            data: pdfBase64,
-            directory: Directory.ExternalCache, // <--- CHANGED TO EXTERNAL CACHE
-            encoding: Encoding.Base64,
-            recursive: true,
+          await FileOpener.open({
+            filePath: savedFile.uri,
+            contentType: 'application/pdf',
+            openWithDefault: true,
           });
 
-          console.log('PDF saved at:', result.uri);
+          await Toast.show({ text: '✅ Opening Report...', duration: 'short' });
 
-          await Toast.show({
-            text: '✅ Report Generated. Opening...',
-            duration: 'short',
-          });
+        } catch (openError) {
+          console.warn('FileOpener failed, falling back to Share:', openError);
 
-          // 2. Automatically Open the File
-          try {
-            await FileOpener.open({
-              filePath: result.uri,
-              contentType: 'application/pdf',
-              openWithDefault: true, // Attempt to open immediately
-            });
-          } catch (openError) {
-            console.warn('Error auto-opening file:', openError);
-            await Toast.show({
-              text: '✅ File saved in Cache. Could not auto-open.',
-              duration: 'long',
-            });
-          }
-
-        } catch (error) {
-          console.error("Android/iOS save error:", error);
-          await Toast.show({
-            text: `❌ Failed to save PDF: ${error.message}`,
-            duration: 'long',
+          await Share.share({
+            title: 'Ledger Report',
+            text: `Report for ${ledger.name}`,
+            url: savedFile.uri,
+            dialogTitle: 'Open PDF'
           });
         }
       }
+
     } catch (error) {
-      console.error("Error generating or saving PDF:", error);
+      console.error("PDF Generation Error:", error);
       await Toast.show({
-        text: `❌ Failed to save PDF: ${error.message || error}`,
+        text: `❌ Error: ${error.message}`,
         duration: 'long',
       });
     } finally {
       setIsGeneratingPdf(false);
     }
   };
+
 
   useEffect(() => {
     // Optional: Notification setup can remain if you want backup notifications, 
