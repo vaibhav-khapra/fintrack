@@ -951,7 +951,7 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
             ) : (
               <Printer className='w-5 h-5' />
             )}
-            <span>Download Report</span>
+            <span>Download</span>
             <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isDownloadDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
