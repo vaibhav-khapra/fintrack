@@ -108,7 +108,7 @@ const DateRangeModal = ({ isOpen, onClose, onConfirm, ledgerCreatedAt }) => {
 
           <div className="flex flex-col gap-3 pt-2">
             <button type="submit" className="w-full py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-md flex justify-center items-center gap-2">
-              <Printer className="w-4 h-4" /> Download Report
+              <Printer className="w-4 h-4" /> Download
             </button>
             <button type="button" onClick={onClose} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 mt-2">
               Cancel
