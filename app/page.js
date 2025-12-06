@@ -777,9 +777,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
 
       let reportTitleDate = `${fromDate} to ${toDate}`;
 
-
-
-
       if (startDate && endDate) {
         const sDate = new Date(startDate);
         const eDate = new Date(endDate);
@@ -931,7 +928,8 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         <span>Back to Ledgers</span>
       </button>
 
-      <div className="border-b border-gray-200 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* --- FIX START: Changed flex-col to flex-row and md:items-center to items-center --- */}
+      <div className="border-b border-gray-200 pb-4 flex flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-4xl font-extrabold text-indigo-900">{ledger.name}</h1>
           <p className="text-lg text-gray-500">Ledger Details</p>
@@ -940,7 +938,8 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         <div className="relative">
           <button
             onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-            className='flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 shadow-md disabled:opacity-50'
+            /* --- FIX: Added whitespace-nowrap --- */
+            className='whitespace-nowrap flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 shadow-md disabled:opacity-50'
             disabled={!ledger.transactions || ledger.transactions.length === 0 || isGeneratingPdf}
           >
             {isGeneratingPdf ? (
