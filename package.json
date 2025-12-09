@@ -10,6 +10,7 @@
   "dependencies": {
     "@capacitor-community/file-opener": "^7.0.1",
     "@capacitor-community/media": "^8.0.1",
+    "@capacitor-community/sqlite": "^7.0.2",
     "@capacitor/android": "7.4.4",
     "@capacitor/app": "^7.1.0",
     "@capacitor/cli": "^7.4.4",
@@ -21,6 +22,7 @@
     "@vercel/analytics": "^1.5.0",
     "cordova-plugin-file-opener2": "^4.0.0",
     "html2canvas": "^1.4.1",
+    "jeep-sqlite": "^2.8.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.544.0",

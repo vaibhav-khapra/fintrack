@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Trash2, X, AlertTriangle, ArrowLeft, Printer, Edit, CornerDownLeft, CornerUpRight, Briefcase, ChevronLeft, ChevronRight, Calendar, ChevronDown, Clock, CalendarDays, FileText, SlidersHorizontal } from 'lucide-react';
+// Added 'Search' to imports
+import { Plus, Trash2, X, AlertTriangle, ArrowLeft, Printer, Edit, CornerDownLeft, CornerUpRight, Briefcase, ChevronLeft, ChevronRight, Calendar, ChevronDown, Clock, CalendarDays, FileText, SlidersHorizontal, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 // --- IMPORTS ---
@@ -119,11 +120,6 @@ const DateRangeModal = ({ isOpen, onClose, onConfirm, ledgerCreatedAt }) => {
     </div>
   );
 };
-
-// ... [TransactionForm, TransactionEditForm, LedgerForm, Modal, DeleteConfirmationModal, TransactionDeleteConfirmationModal, LedgerCard, TransactionHistoryList components remain exactly the same as previous version] ...
-
-// Note: For brevity, I am assuming the components above are unchanged. 
-// BELOW IS THE UPDATED LEDGER DETAIL VIEW WITH THE DROPDOWN LOGIC.
 
 const TransactionForm = ({ onClose, onAddTransaction }) => {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
@@ -726,7 +722,9 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
     const today = new Date().toISOString().split('T')[0];
 
     if (option === 'month') {
-      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        .toLocaleDateString('en-CA');
+
       handleDownloadPDF(startOfMonth, today);
     } else if (option === '30days') {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -928,7 +926,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         <span>Back to Ledgers</span>
       </button>
 
-      {/* --- FIX START: Changed flex-col to flex-row and md:items-center to items-center --- */}
       <div className="border-b border-gray-200 pb-4 flex flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-4xl font-extrabold text-indigo-900">{ledger.name}</h1>
@@ -938,7 +935,6 @@ const LedgerDetailView = ({ ledger, onBack, onAddTransaction, onEditTransaction,
         <div className="relative">
           <button
             onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-            /* --- FIX: Added whitespace-nowrap --- */
             className='whitespace-nowrap flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 shadow-md disabled:opacity-50'
             disabled={!ledger.transactions || ledger.transactions.length === 0 || isGeneratingPdf}
           >
@@ -1067,6 +1063,10 @@ export default function FintrackApp() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [ledgerToDelete, setLedgerToDelete] = useState(null);
 
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+
   const [viewState, setViewState] = useState({
     page: 'list',
     selectedLedger: null,
@@ -1105,6 +1105,15 @@ export default function FintrackApp() {
       } catch (error) { console.error("Error saving ledgers:", error); }
     }
   }, [ledgers, isLoaded]);
+
+  const filteredLedgers = useMemo(() => {
+    if (!searchQuery) return ledgers;
+    const lowerQuery = searchQuery.toLowerCase();
+    return ledgers.filter(ledger =>
+      ledger.name.toLowerCase().includes(lowerQuery) ||
+      ledger.contactNo.includes(lowerQuery)
+    );
+  }, [ledgers, searchQuery]);
 
   const handleAddLedger = useCallback((data) => {
     const newLedger = {
@@ -1234,6 +1243,7 @@ export default function FintrackApp() {
     const currentLedger = ledgers.find(l => l.id === ledger.id);
     if (currentLedger) {
       setViewState({ page: 'detail', selectedLedger: currentLedger });
+      setIsMobileSearchOpen(false); // Ensure mobile search closes when viewing details
     }
   }, [ledgers]);
 
@@ -1241,11 +1251,11 @@ export default function FintrackApp() {
     setViewState({ page: 'list', selectedLedger: null });
   }, []);
 
-  const mainStateRef = useRef({ isModalOpen, isDeleteModalOpen, viewState });
+  const mainStateRef = useRef({ isModalOpen, isDeleteModalOpen, viewState, isMobileSearchOpen });
 
   useEffect(() => {
-    mainStateRef.current = { isModalOpen, isDeleteModalOpen, viewState };
-  }, [isModalOpen, isDeleteModalOpen, viewState]);
+    mainStateRef.current = { isModalOpen, isDeleteModalOpen, viewState, isMobileSearchOpen };
+  }, [isModalOpen, isDeleteModalOpen, viewState, isMobileSearchOpen]);
 
   useEffect(() => {
     if (typeof window.Capacitor !== 'undefined') {
@@ -1254,6 +1264,8 @@ export default function FintrackApp() {
           setIsModalOpen(false);
         } else if (mainStateRef.current.isDeleteModalOpen) {
           cancelDeleteLedger();
+        } else if (mainStateRef.current.isMobileSearchOpen) {
+          setIsMobileSearchOpen(false);
         } else if (mainStateRef.current.viewState.page === 'detail') {
           handleBackToList();
         } else {
@@ -1296,52 +1308,144 @@ export default function FintrackApp() {
     }
 
     return (
-      <main className='pt-24 p-4 min-h-screen bg-gray-100'>
-        <h2 className='text-2xl font-extrabold text-indigo-900 mb-6 border-b pb-2'>Your Ledgers ({ledgers.length})</h2>
-        {ledgers.length === 0 && (
+      <main className='pt-24 p-4 min-h-screen bg-gray-100 pb-24'>
+        <div className="flex justify-between items-center mb-6 border-b pb-2">
+          <h2 className='text-2xl font-extrabold text-indigo-900'>
+            Your Ledgers ({filteredLedgers.length})
+          </h2>
+        </div>
+
+        {ledgers.length === 0 ? (
           <div className="text-center p-16 bg-white rounded-xl shadow-lg">
             <p className="text-gray-600 text-lg">No ledgers found. Click the <span className="font-bold text-cyan-600">Plus (+)</span> icon to add your first client ledger!</p>
           </div>
+        ) : filteredLedgers.length === 0 ? (
+          <div className="text-center p-16 bg-white rounded-xl shadow-lg">
+            <p className="text-gray-600 text-lg">No ledgers found matching "<span className="font-bold text-indigo-600">{searchQuery}</span>".</p>
+          </div>
+        ) : (
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
+            {filteredLedgers.map(ledger => (
+              <LedgerCard
+                key={ledger.id}
+                ledger={ledger}
+                onDelete={initiateDeleteLedger}
+                onViewDetails={handleViewDetails}
+              />
+            ))}
+          </div>
         )}
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
-          {ledgers.map(ledger => (
-            <LedgerCard
-              key={ledger.id}
-              ledger={ledger}
-              onDelete={initiateDeleteLedger}
-              onViewDetails={handleViewDetails}
-            />
-          ))}
-        </div>
       </main>
     );
   };
 
   return (
     <>
-      <nav className="fixed top-0 left-0 w-full bg-indigo-700 h-20 z-20 shadow-xl">
-        <div className='flex h-full justify-between items-center px-4 border-b border-indigo-800'>
-          <h1 className='text-2xl sm:text-3xl font-extrabold text-white'>
+      <nav className="fixed top-0 left-0 w-full bg-indigo-700 h-20 z-20 shadow-xl transition-all duration-300">
+        <div className='flex h-full items-center px-4 border-b border-indigo-800 gap-3 justify-between'>
+
+          {/* Logo: Hidden on Mobile if Search is Open */}
+          <h1 className={`text-2xl sm:text-3xl font-extrabold text-white flex-shrink-0 ${isMobileSearchOpen ? 'hidden lg:block' : 'block'}`}>
             Fin<span className='text-cyan-400 italic'>Track</span>
           </h1>
 
-          {viewState.page === 'list' && (
+          {/* Mobile Search Overlay (< 1024px) */}
+          {isMobileSearchOpen && viewState.page === 'list' && (
+            <div className="flex-1 flex lg:hidden items-center gap-2 animate-in fade-in slide-in-from-right-5 duration-200">
+              <button
+                onClick={() => { setIsMobileSearchOpen(false); setSearchQuery(''); }}
+                className="p-2 text-indigo-200 hover:text-white"
+              >
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  autoFocus
+                  className="block w-full pl-4 pr-10 py-2 border border-transparent rounded-lg bg-indigo-800 text-white placeholder-indigo-300 focus:outline-none focus:bg-indigo-900 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-indigo-300 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Desktop Actions (>= 1024px): Search Bar + New Ledger Button */}
+          <div className="hidden lg:flex items-center gap-4 flex-1 justify-end max-w-2xl">
+            {viewState.page === 'list' && (
+              <>
+                <div className="relative w-full max-w-md">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-indigo-300" />
+                  </div>
+                  <input
+                    type="text"
+                    className="block w-full pl-10 pr-3 py-2 border border-transparent rounded-lg leading-5 bg-indigo-800 text-white placeholder-indigo-300 focus:outline-none focus:bg-indigo-900 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 sm:text-sm transition duration-150 ease-in-out"
+                    placeholder="Search ledgers..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <button
+
+                  onClick={() => setIsModalOpen(true)}
+
+                  className="p-3 rounded-full bg-cyan-500 text-white shadow-lg hover:bg-cyan-600 transition-colors shrink-0"
+
+                >
+
+                  <Plus className='w-6 h-6' />
+
+                </button>
+
+
+              </>
+            )}
+          </div>
+
+          {/* Mobile Search Trigger Icon (< 1024px) */}
+          {!isMobileSearchOpen && viewState.page === 'list' && (
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="p-3 rounded-full bg-cyan-500 text-white shadow-lg hover:bg-cyan-600 transition-colors"
+              onClick={() => setIsMobileSearchOpen(true)}
+              className="lg:hidden p-2  rounded-full text-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors"
             >
-              <Plus className='w-6 h-6 sm:w-7 sm:h-7' />
+              <Search className="h-6 w-6" />
             </button>
           )}
+
         </div>
       </nav>
 
       {renderContent()}
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+      {/* Floating Action Button (Mobile/Tablet Only < 1024px) */}
+      {viewState.page === 'list' && !isMobileSearchOpen && (
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="lg:hidden fixed z-30 bottom-6 right-6 p-4 rounded-full bg-cyan-500 text-white shadow-2xl hover:bg-cyan-600 active:scale-95 transition-all duration-200"
+          style={{ boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)' }}
+          aria-label="Add Ledger"
+        >
+          <Plus className='w-7 h-7' />
+        </button>
+      )}
+
+      {/* Create Ledger Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Ledger">
         <LedgerForm onClose={() => setIsModalOpen(false)} onAddLedger={handleAddLedger} />
       </Modal>
 
+      {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         ledger={ledgerToDelete}
