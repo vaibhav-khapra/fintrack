@@ -505,19 +505,21 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
   const textColor = isCredit ? 'text-green-700' : 'text-red-700';
 
   const handleDelete = (e) => {
-    e.stopPropagation();
-    onDelete(ledger.id);
+    e.stopPropagation();      // prevent opening details
+    onDelete(ledger.id);      // call delete function
   };
 
   return (
     <div
       onClick={() => onViewDetails(ledger)}
-      className={`w-full h-auto rounded-xl p-6 shadow-lg border-l-4 relative transition-all duration-300 hover:shadow-xl ${bgColor} cursor-pointer active:scale-95 hover:scale-[1.02]`}
+      className={`relative w-full h-auto rounded-xl p-6 shadow-lg border-l-4 transition-all duration-300
+                  hover:shadow-xl cursor-pointer active:scale-95 hover:scale-[1.02] ${bgColor}`}
     >
       <h1 className="text-xl md:text-2xl font-extrabold text-indigo-900 flex items-center gap-2">
-        <Briefcase className='w-5 h-5 text-indigo-500' />
+        <Briefcase className="w-5 h-5 text-indigo-500" />
         {ledger.name}
       </h1>
+
       <p className="text-sm font-medium text-gray-500 mb-2">{ledger.contactNo}</p>
 
       <div className="mt-4">
@@ -527,15 +529,17 @@ const LedgerCard = ({ ledger, onDelete, onViewDetails }) => {
         </h2>
       </div>
 
-      <div className='absolute bottom-4 right-4 flex gap-3'>
-        <Trash2
-          onClick={handleDelete}
-          className={`w-6 h-6 md:w-6 md:h-6 cursor-pointer text-gray-400 hover:text-red-600 transition-colors duration-200`}
-        />
-      </div>
+      {/* DELETE BUTTON */}
+      <button
+        onClick={handleDelete}
+        className="absolute bottom-4 right-4 z-50 p-2 rounded-full hover:bg-red-100 transition duration-200"
+      >
+        <Trash2 className="w-6 h-6 text-gray-400 hover:text-red-600" />
+      </button>
     </div>
   );
 };
+
 
 const TransactionHistoryList = ({ transactions, onEditClick, onDeleteClick }) => {
   const [currentPage, setCurrentPage] = useState(1);
