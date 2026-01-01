@@ -312,95 +312,150 @@ const TransactionEditForm = ({ onClose, onEditTransaction, transaction }) => {
 };
 
 const LedgerForm = ({ onClose, onAddLedger }) => {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm();
+
+  const [isDebit, setIsDebit] = useState(false);
 
   const addLedger = (data) => {
-    onAddLedger(data);
+    const finalAmount = isDebit
+      ? -Math.abs(data.openingAmount)
+      : Math.abs(data.openingAmount);
+
+    onAddLedger({
+      ...data,
+      openingAmount: finalAmount,
+    });
+
     reset();
+    setIsDebit(false);
     onClose();
   };
 
   return (
-    <form onSubmit={handleSubmit(addLedger)} className="p-6 bg-white rounded-xl space-y-4">
-      <h2 className="text-2xl font-bold text-indigo-800 border-b pb-3 mb-3">Add New Ledger</h2>
+    <form
+      onSubmit={handleSubmit(addLedger)}
+      className="p-6 bg-white rounded-xl space-y-4"
+    >
+      <h2 className="text-2xl font-bold text-indigo-800 border-b pb-3 mb-3">
+        Add New Ledger
+      </h2>
 
+      {/* Ledger Name */}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Ledger Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Ledger Name
+        </label>
         <input
-          id="name"
           type="text"
           {...register("name", { required: "Name is required" })}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500"
           placeholder="e.g., John Doe"
         />
-        {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
+        {errors.name && (
+          <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>
+        )}
       </div>
 
+      {/* Contact No */}
       <div>
-        <label htmlFor="contactNo" className="block text-sm font-medium text-gray-700 mb-1">Contact No.</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Contact No.
+        </label>
         <input
-          id="contactNo"
           type="tel"
+          inputMode="numeric"
           {...register("contactNo", {
             required: "Contact No. is required",
             pattern: {
               value: /^\d{10}$/,
-              message: "Must be a 10-digit number"
-            }
-          })}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out"
-          placeholder="e.g., 9876543210"
-        />
-        {errors.contactNo && <p className="mt-1 text-xs text-red-600">{errors.contactNo.message}</p>}
-      </div>
-
-      <div>
-        <label htmlFor="openingAmount" className="block text-sm font-medium text-gray-700 mb-1">
-          Opening Balance (Rs.)
-        </label>
-        <input
-          id="openingAmount"
-          type="text"
-          {...register("openingAmount", {
-            required: "Amount is required",
-            validate: (value) => {
-              const num = parseFloat(value);
-              if (isNaN(num)) return "Amount must be a valid number";
-              return true;
+              message: "Must be a 10-digit number",
             },
           })}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 ease-in-out"
-          placeholder="e.g., 5000.00 (Credit) or -500.00 (Debit)"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500"
+          placeholder="e.g., 9876543210"
         />
-        {errors.openingAmount && (
-          <p className="mt-1 text-xs text-red-600">{errors.openingAmount.message}</p>
+        {errors.contactNo && (
+          <p className="mt-1 text-xs text-red-600">
+            {errors.contactNo.message}
+          </p>
         )}
+      </div>
+
+      {/* Opening Balance with Toggle */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Opening Balance (₹)
+        </label>
+
+        <div className="flex items-center gap-2">
+          {/* Credit / Debit Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsDebit(!isDebit)}
+            className={`px-3 py-2 rounded-lg font-semibold text-sm transition
+              ${isDebit
+                ? "bg-red-100 text-red-700 border border-red-400"
+                : "bg-green-100 text-green-700 border border-green-400"
+              }`}
+          >
+            {isDebit ? "− Debit" : "+ Credit"}
+          </button>
+
+          {/* Numeric Input */}
+          <input
+            type="number"
+            inputMode="numeric"
+            step="0.01"
+            min="0"
+            {...register("openingAmount", {
+              required: "Amount is required",
+              valueAsNumber: true,
+              validate: (value) =>
+                value > 0 || "Amount must be greater than 0",
+            })}
+            className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500"
+            placeholder="e.g., 5000"
+          />
+        </div>
+
+        {errors.openingAmount && (
+          <p className="mt-1 text-xs text-red-600">
+            {errors.openingAmount.message}
+          </p>
+        )}
+
         <p className="mt-1 text-xs text-gray-500">
-          Use a **negative sign (-) ** if you owe them (Debit).
+          Toggle to mark Credit or Debit
         </p>
       </div>
 
+      {/* Actions */}
       <div className="flex justify-end gap-3 pt-2">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200"
           disabled={isSubmitting}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
         >
           Cancel
         </button>
+
         <button
           type="submit"
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 shadow-md"
           disabled={isSubmitting}
+          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 shadow-md"
         >
-          {isSubmitting ? 'Adding...' : 'Add Ledger'}
+          {isSubmitting ? "Adding..." : "Add Ledger"}
         </button>
       </div>
     </form>
   );
 };
-
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
